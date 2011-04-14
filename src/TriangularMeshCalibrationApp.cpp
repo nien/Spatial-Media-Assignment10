@@ -33,6 +33,8 @@
 
 #include "cinder/app/AppBasic.h"
 #include "cinder/gl/gl.h"
+#include "cinder/gl/Texture.h"
+#include "cinder/ImageIO.h"
 
 using namespace ci;
 using namespace ci::app;
@@ -58,30 +60,45 @@ class TriangularMeshCalibrationApp : public AppBasic
 	void prepareSettings( Settings *settings );
 
   private:
-	Triangle srcTriangle, dstTriangle;
+	Triangle srcTriangleA, srcTriangleB;
+	Triangle dstTriangleA, dstTriangleB;
+	
 	void drawTriangle( Triangle const &triangle );
 
 	Vec2f srcCursor, calCursor;
 	bool  drawCalibratedPoint;
 	bool  getCalibratedPt( Triangle const &srcTriangle, Triangle const &dstTriangle, 
 						   Vec2f const &srcPt, Vec2f &calPt );
+	
+	Channel32f mImage;
 };
 
 void TriangularMeshCalibrationApp::prepareSettings( Settings *settings )
 {
-	settings->setWindowSize( 800, 600 );
+	settings->setWindowSize( 800, 320 );
 	settings->setFrameRate( 60.0f );
 }
 
 void TriangularMeshCalibrationApp::setup()
 {
-	srcTriangle.ptA = Vec2f( 100, 100 );
-	srcTriangle.ptB = Vec2f( 200, 200 );
-	srcTriangle.ptC = Vec2f( 50,  200 );
+	mImage = Channel32f( loadImage( loadResource( "image.jpg" ) ) );
+	
+	srcTriangleA.ptA = Vec2f( 79,  9 );
+	srcTriangleA.ptB = Vec2f( 258, 30 );
+	srcTriangleA.ptC = Vec2f( 297,  207 );
 
-	dstTriangle.ptA = Vec2f( 300, 300 );
-	dstTriangle.ptB = Vec2f( 400, 400 );
-	dstTriangle.ptC = Vec2f( 250, 400 );
+	srcTriangleB.ptA = Vec2f( 79, 9 );
+	srcTriangleB.ptB = Vec2f( 78, 225 );
+	srcTriangleB.ptC = Vec2f( 297,  207 );
+	
+	
+	dstTriangleA.ptA = Vec2f( 500, 50 );
+	dstTriangleA.ptB = Vec2f( 700, 50 );
+	dstTriangleA.ptC = Vec2f( 700, 250 );
+
+	dstTriangleB.ptA = Vec2f( 500, 50 );
+	dstTriangleB.ptB = Vec2f( 500, 250 );
+	dstTriangleB.ptC = Vec2f( 700, 250 );
 }
 
 void TriangularMeshCalibrationApp::mouseDown( MouseEvent event )
@@ -91,6 +108,7 @@ void TriangularMeshCalibrationApp::mouseDown( MouseEvent event )
 
 void TriangularMeshCalibrationApp::mouseMove( MouseEvent event )
 {
+	console() << event.getPos() << endl;
 	srcCursor = event.getPos();
 }
 
@@ -133,8 +151,12 @@ bool TriangularMeshCalibrationApp::getCalibratedPt( Triangle const &srcTriangle,
 
 void TriangularMeshCalibrationApp::update()
 {
-	// Get calibrated point.
-	drawCalibratedPoint = getCalibratedPt( srcTriangle, dstTriangle, srcCursor, calCursor );
+	// Get calibrated points.
+	if ( drawCalibratedPoint = getCalibratedPt( srcTriangleA, dstTriangleA, srcCursor, calCursor ) )
+		return;
+	
+	if ( drawCalibratedPoint = getCalibratedPt( srcTriangleB, dstTriangleB, srcCursor, calCursor ) )
+		return;
 }
 
 void TriangularMeshCalibrationApp::draw()
@@ -142,16 +164,18 @@ void TriangularMeshCalibrationApp::draw()
 	// clear out the window with black
 	gl::clear( Color( 0, 0, 0 ) ); 
 	
+	// Draw image.
+	gl::color( Color( 1.0f, 1.0f, 1.0f ) );
+	Area area = Area( Vec2f::zero(), Vec2f( 320, 240 ) ); 
+	gl::draw( mImage, area );
+	
 	glLineWidth( 2.0f );
 	
-	// Draw source triangle.
+	// Draw distorted triangles.
 	gl::color( Color( 1.0f, 0.0f, 0.0f ) );
-	drawTriangle( srcTriangle );
-
-	// Draw distorted triangle.
-	gl::color( Color( 0.0f, 1.0f, 0.0f ) );
-	drawTriangle( dstTriangle );
-
+	drawTriangle( dstTriangleA );
+	drawTriangle( dstTriangleB );
+	
 	// Draw source point.
 	gl::color( Color( 1.0f, 1.0f, 0.0f ) );
 	gl::drawSolidCircle( srcCursor, 4.0f );
